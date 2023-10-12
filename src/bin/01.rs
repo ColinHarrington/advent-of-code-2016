@@ -10,7 +10,7 @@ use nom::IResult;
 use std::collections::HashSet;
 
 pub fn part_one(input: &str) -> Option<u32> {
-    let instructions = instructions(&input.trim()).unwrap().1;
+    let instructions = instructions(input.trim()).unwrap().1;
     let bunny = instructions
         .iter()
         .fold(Bunny::new(), |bunny, instruction| bunny.jump(instruction));
