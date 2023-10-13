@@ -24,6 +24,7 @@ pub fn part_two(input: &str) -> Option<u32> {
             .unwrap()
             .1
             .into_iter()
+            .inspect(|room| println!("{} => [{}]", room.decrypt(), room.checksum))
             .filter(is_real)
             .filter(|room| room.decrypt() == "northpole object storage")
             .collect_vec()
@@ -46,7 +47,7 @@ fn is_real(room: &Room) -> bool {
         .flat_map(|(_, group)| group.into_iter().map(|(chr, _)| chr).sorted().collect_vec())
         .take(5)
         .collect();
-
+    println!(" sum: {sum}");
     sum == room.checksum
 }
 fn rooms(input: &str) -> IResult<&str, Vec<Room>> {
@@ -116,8 +117,8 @@ mod tests {
 
     #[test]
     fn test_part_two() {
-        let input = advent_of_code::read_file("examples", 4);
-        assert_eq!(part_two(&input), None);
+        let input = "northpole-object-storage-676[oetra]";
+        assert_eq!(part_two(input), Some(676));
     }
 
     #[test]
