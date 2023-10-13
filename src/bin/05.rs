@@ -4,7 +4,6 @@ use itertools::Itertools;
 pub fn part_one(input: &str) -> Option<String> {
     let door_id = input.trim();
     let password: String = (0u64..u64::MAX)
-        .into_iter()
         .filter_map(|i| match md5::compute(format!("{door_id}{i}")).0 {
             [0, 0, third, ..] if third <= 15 => Some(third),
             _ => None,
@@ -20,7 +19,6 @@ pub fn part_two(input: &str) -> Option<String> {
     let door_id = input.trim();
 
     let password: String = (0u64..u64::MAX)
-        .into_iter()
         .filter_map(|i| match md5::compute(format!("{door_id}{i}")).0 {
             [0, 0, third, fourth, ..] if third <= 7 => Some((third, fourth >> 4)),
             _ => None,
@@ -38,7 +36,7 @@ pub fn part_two(input: &str) -> Option<String> {
         })
         .into_inner()
         .into_iter()
-        .filter_map(|c| c)
+        .flatten()
         .collect();
 
     Some(password)
