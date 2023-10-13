@@ -12,7 +12,7 @@ pub fn part_one(input: &str) -> Option<usize> {
 fn can_triangle((a, b, c): &Triple) -> bool {
     let ordered: [u32; 3] = vec![a, b, c]
         .into_iter()
-        .map(|v| *v)
+        .copied()
         .sorted()
         .collect_vec()
         .try_into()
