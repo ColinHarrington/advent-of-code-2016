@@ -106,7 +106,7 @@ fn target_output(input: &str) -> IResult<&str, Target> {
 }
 #[derive(Debug, Eq, PartialEq, Clone)]
 enum Instruction {
-    Distribute(u32, Target), //value 3 goes to bot 1
+    Distribute(u32, Target),
     BotPlay(Bot, Target, Target),
 }
 #[derive(Debug, Eq, PartialEq, Clone)]
