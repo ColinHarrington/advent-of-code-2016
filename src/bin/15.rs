@@ -7,7 +7,7 @@ use nom::sequence::{delimited, preceded, tuple};
 use nom::IResult;
 use ring_algorithm::chinese_remainder_theorem;
 use std::iter::once;
-use std::ops::{Add, Rem};
+use std::ops::Rem;
 
 pub fn part_one(input: &str) -> Option<i64> {
     let (u, m): (Vec<i64>, Vec<i64>) = discs(input)
@@ -66,13 +66,6 @@ impl Disc {
     fn remainder_at_zero(&self) -> i64 {
         (self.start + self.number + self.positions).rem(self.positions)
     }
-    fn position(&self, time: i64) -> i64 {
-        (self.start + self.number + time).rem(self.positions)
-    }
-    fn can_pass(&self, time: i64) -> bool {
-        (self.start + self.number + time).rem(self.positions) == 0
-        // (time + self.start).rem(self.positions) == (self.number).rem(self.positions)
-    }
 }
 
 fn main() {
@@ -94,6 +87,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let input = advent_of_code::read_file("examples", 15);
-        assert_eq!(part_two(&input), None);
+        assert_eq!(part_two(&input), Some(85));
     }
 }
