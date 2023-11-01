@@ -16,7 +16,7 @@ pub fn part_one(input: &str) -> Option<String> {
 }
 fn scramble(seed: &str, instructions: Vec<Instruction>) -> String {
     let mut password = VecDeque::from_iter(seed.chars());
-    for instruction in instructions {\
+    for instruction in instructions {
         match instruction {
             SwapPositions(a, b) => password.swap(a, b),
             SwapLetters(a, b) => password.swap(
