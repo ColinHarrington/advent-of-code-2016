@@ -4,49 +4,85 @@ use nom::combinator::map;
 use nom::multi::separated_list1;
 use nom::sequence::separated_pair;
 use nom::IResult;
-use std::ops::RangeInclusive;
+use std::collections::BTreeSet;
+use std::fmt::{Display, Formatter};
+use std::ops::{Add, Sub};
 
 pub fn part_one(input: &str) -> Option<u32> {
-    let ranges = ip_ranges(input).unwrap().1;
-    let mut min = 0u32;
-    while let Some(range) = ranges.iter().find(|range| range.contains(&min)) {
-        min = range.end() + 1;
-    }
-    Some(min)
+    Some(
+        condense_ranges(ip_ranges(input).unwrap().1)
+            .first()
+            .unwrap()
+            .end
+            .saturating_add(1),
+    )
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    let ranges = ip_ranges(input).unwrap().1;
-    let mut block: Vec<IpRange> = vec![];
-    //Find the start
-    // let start = ranges
-    //     .iter()
-    //     .find(|range| range.contains(0))
-    //     .unwrap()
-    //     .clone();
-    let r = ranges.iter().fold((0u32..=0u32), |acc, range| {
-        match range.start() <= &(acc.end() + 1) {
-            true => *acc.start()..=*range.end(),
-            false => acc,
-        }
-    });
-    // -> find all overlapping
-    // loop until no contiguous
-    // ranges.iter().reduce()
-    None
+    Some(
+        condense_ranges(ip_ranges(input).unwrap().1)
+            .iter()
+            .tuple_windows()
+            .map(|(a, b)| b.start.sub(a.end.add(1)))
+            .sum(),
+    )
 }
 
-type IpRange = RangeInclusive<u32>;
+/// Merges contiguous ranges until we have exhausted supplied ranges
+/// Returns sorted distinct non-contiguous BlockRanges as a BTreeSet
+fn condense_ranges(ranges: Vec<BlockRange>) -> BTreeSet<BlockRange> {
+    let mut condensed = BTreeSet::new();
 
-fn ip_ranges(input: &str) -> IResult<&str, Vec<IpRange>> {
+    for range in ranges {
+        let expanded = condensed
+            .iter()
+            .filter(|other| range.is_contiguous(other))
+            .fold(range.clone(), |acc, next| acc.merge(next));
+
+        condensed.retain(|other| !expanded.is_contiguous(other));
+        condensed.insert(expanded);
+    }
+
+    condensed
+}
+
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
+struct BlockRange {
+    start: u32,
+    end: u32,
+}
+impl Display for BlockRange {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}-{}", self.start, self.end)
+    }
+}
+
+impl BlockRange {
+    fn new((start, end): (u32, u32)) -> Self {
+        Self { start, end }
+    }
+
+    fn is_contiguous(&self, other: &BlockRange) -> bool {
+        other.start <= self.end.saturating_add(1) && other.start >= self.start
+            || self.start <= other.end.saturating_add(1) && self.start >= other.start
+    }
+
+    fn merge(&self, other: &BlockRange) -> BlockRange {
+        BlockRange {
+            start: self.start.min(other.start),
+            end: self.end.max(other.end),
+        }
+    }
+}
+
+fn ip_ranges(input: &str) -> IResult<&str, Vec<BlockRange>> {
     separated_list1(line_ending, ip_range)(input)
 }
 
-fn ip_range(input: &str) -> IResult<&str, IpRange> {
-    map(separated_pair(nom_u32, char('-'), nom_u32), |(from, to)| {
-        from..=to
-    })(input)
+fn ip_range(input: &str) -> IResult<&str, BlockRange> {
+    map(separated_pair(nom_u32, char('-'), nom_u32), BlockRange::new)(input)
 }
+
 fn main() {
     let input = &advent_of_code::read_file("inputs", 20);
     advent_of_code::solve!(1, part_one, input);
@@ -60,12 +96,12 @@ mod tests {
     #[test]
     fn test_part_one() {
         let input = advent_of_code::read_file("examples", 20);
-        assert_eq!(part_one(&input), None);
+        assert_eq!(part_one(&input), Some(3));
     }
 
     #[test]
     fn test_part_two() {
         let input = advent_of_code::read_file("examples", 20);
-        assert_eq!(part_two(&input), None);
+        assert_eq!(part_two(&input), Some(1));
     }
 }
