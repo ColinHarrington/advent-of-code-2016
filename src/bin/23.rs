@@ -2,7 +2,6 @@ use crate::parse::instructions;
 use crate::Argument::{Register, Value};
 use crate::Arguments::{Binary, Unary};
 use crate::Instruction::*;
-use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
 
 pub fn part_one(input: &str) -> Option<i32> {
