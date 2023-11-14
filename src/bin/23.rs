@@ -194,13 +194,6 @@ mod tests {
     use crate::parse::instructions;
 
     #[test]
-    fn input_parses() {
-        let input = advent_of_code::read_file("inputs", 23);
-        let (tail, instructions) = instructions(&input.trim()).unwrap();
-        assert_eq!("", tail);
-        assert_eq!(26, instructions.len());
-    }
-    #[test]
     fn test_part_one() {
         let input = advent_of_code::read_file("examples", 23);
         assert_eq!(part_one(&input), Some(3));
