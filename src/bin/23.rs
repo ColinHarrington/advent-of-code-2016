@@ -2,6 +2,7 @@ use crate::parse::instructions;
 use crate::Argument::{Register, Value};
 use crate::Arguments::{Binary, Unary};
 use crate::Instruction::*;
+use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
 
 pub fn part_one(input: &str) -> Option<i32> {
@@ -15,6 +16,7 @@ pub fn part_two(input: &str) -> Option<i32> {
 
     Some(Computer::new(instructions, 12).run())
 }
+
 #[derive(Debug, Clone)]
 pub enum Arguments {
     Unary(Argument),
@@ -41,6 +43,8 @@ impl Computer {
     }
 
     fn run(&mut self) -> i32 {
+        self.optimize();
+
         let mut ip = 0;
 
         while let Some(instruction) = self.instructions.get(ip) {
@@ -73,11 +77,12 @@ impl Computer {
                         Increment(Unary(Register(register))) => {
                             self.set(*register, self.get(*register) + 1)
                         }
-
                         Decrement(Unary(Register(register))) => {
                             self.set(*register, self.get(*register) - 1)
                         }
-
+                        Mul(Binary(Register(r1), Register(r2))) => {
+                            self.set('a', self.get(*r1) * self.get(*r2))
+                        }
                         Toggle(Unary(Register(register))) => {
                             let target_idx = ip_at(ip, self.get(*register));
                             if let Some(target) = self.instructions.remove(target_idx) {
@@ -89,8 +94,10 @@ impl Computer {
                                         Increment(args) => Decrement(args.clone()),
                                         Decrement(args) => Increment(args.clone()),
                                         Toggle(args) => Increment(args.clone()),
+                                        i => i,
                                     },
-                                )
+                                );
+                                self.optimize();
                             }
                         }
                         _ => {}
@@ -107,7 +114,51 @@ impl Computer {
     fn set(&mut self, register: char, value: i32) {
         self.registers.insert(register, value);
     }
+
+    /// Multiplication via manual addition.
+    /// The following is the equivalent of `a += (b * c)`
+    ///
+    /// ```
+    /// cpy b c
+    /// inc a
+    /// dec c
+    /// jnz c -2
+    /// dec d
+    /// jnz d -5
+    ///```
+    fn optimize(&mut self) {
+        let instructions = self.instructions.iter().collect_vec().clone();
+
+        let multiplications = instructions
+            .windows(6)
+            .enumerate()
+            .filter_map(|(idx, window)| {
+                match (
+                    window[0], window[1], window[2], window[3], window[4], window[5],
+                ) {
+                    (
+                        Copy(Binary(Register(x1), Register(t1))),
+                        Increment(Unary(Register('a'))),
+                        Decrement(Unary(Register(t2))),
+                        JumpNotZero(Binary(Register(t3), Value(-2))),
+                        Decrement(Unary(Register(z1))),
+                        JumpNotZero(Binary(Register(z2), Value(-5))),
+                    ) if t1 == t2 && t2 == t3 && z1 == z2 => Some((idx, *x1, *t1, *z1)),
+                    _ => None,
+                }
+            })
+            .collect_vec();
+        for (idx, x, t, z) in multiplications {
+            self.instructions[idx] = Mul(Binary(Register(x), Register(z)));
+            self.instructions[idx + 1] = Copy(Binary(Value(0), Register(t)));
+            self.instructions[idx + 2] = Copy(Binary(Value(0), Register(z)));
+            self.instructions[idx + 3] = Nop;
+            self.instructions[idx + 4] = Nop;
+            self.instructions[idx + 5] = Nop;
+        }
+    }
 }
+
 fn ip_at(ip: usize, offset: i32) -> usize {
     if offset < 0 {
         ip.saturating_sub(offset.unsigned_abs() as usize)
@@ -115,13 +166,15 @@ fn ip_at(ip: usize, offset: i32) -> usize {
         ip + (offset as usize)
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Instruction {
     Copy(Arguments),
     Increment(Arguments),
     Decrement(Arguments),
     JumpNotZero(Arguments),
     Toggle(Arguments),
+    Mul(Arguments),
+    Nop,
 }
 
 mod parse {
@@ -191,7 +244,6 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parse::instructions;
 
     #[test]
     fn test_part_one() {
