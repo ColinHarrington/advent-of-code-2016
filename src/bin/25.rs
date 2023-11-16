@@ -34,13 +34,11 @@ fn fast_track(instructions: &[Instruction]) -> u32 {
     u32::from_str_radix(&smallest_in_binary, 2).unwrap() - embedded
 }
 
-/// Instruction 1 and 2 are copying values into registers and then multiplying them together
+/// Instruction 1 and 2 are copying values into registers
+/// and then multiplying them together in the form found in day 23
 fn extract_embedded_seed(instructions: &[Instruction]) -> u32 {
-    match (
-        instructions.iter().nth(1).unwrap(),
-        instructions.iter().nth(2).unwrap(),
-    ) {
-        ((Copy, Args(Value(a), _)), (Copy, Args(Value(b), _))) => (a * b) as u32,
+    match (instructions.get(1), instructions.get(2)) {
+        (Some((Copy, Args(Value(a), _))), Some((Copy, Args(Value(b), _)))) => (a * b) as u32,
         _ => unimplemented!(),
     }
 }
