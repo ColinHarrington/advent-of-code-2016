@@ -161,7 +161,7 @@ mod parse {
                 "dec" => Decrement,
                 "jnz" => JumpNotZero,
                 "out" => Out,
-                _ => todo!(),
+                _ => unimplemented!(),
             },
         )(input)
     }
