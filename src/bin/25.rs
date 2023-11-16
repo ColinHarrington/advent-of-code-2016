@@ -5,69 +5,105 @@ use std::collections::HashMap;
 
 pub fn part_one(input: &str) -> Option<u32> {
     let instructions = instructions(input.trim()).unwrap().1;
-    let expected = " ";
-    (0u32..).find(|seed| compute(&instructions, *seed as i32, 32) == *expected)
+    let expected = "0101010101010101";
+    (0u32..).find(|seed| compute(&instructions, *seed as i32, 16) == *expected)
 }
 
 fn compute(instructions: &[Instruction], seed: i32, length: usize) -> String {
     let mut output: Vec<char> = vec![];
-    let mut registers = Registers {
-        data: HashMap::from([('a', seed)]),
-    };
-    let mut ip = 0;
-
-    while let Some(instruction) = instructions.get(ip) {
-        match instruction {
-            (Copy, Args(Register(from), Some(Register(target)))) => {
-                registers.set(*target, registers.get(*from));
-            }
-            (Copy, Args(Value(value), Some(Register(target)))) => {
-                registers.set(*target, *value);
-            }
-            (Increment, Args(Register(register), None)) => {
-                registers.inc(*register);
-            }
-            (Decrement, Args(Register(register), None)) => {
-                registers.dec(*register);
-            }
-            (JumpNotZero, Args(arg1, Some(Value(offset)))) => {
-                let test = match arg1 {
-                    Register(register) => registers.get(*register),
-                    Value(value) => *value,
-                };
-                ip = match (test, *offset) {
-                    (0, _) => ip + 1,
-                    (_, 0) => ip + 1,
-                    (_, steps) if steps < 0 => ip.saturating_sub(steps.unsigned_abs() as usize),
-                    (_, steps) => ip + (steps as usize),
-                };
-            }
-            (Out, Args(Register(register), None)) => match registers.get(*register) {
-                0 => output.push('0'),
-                1 => output.push('1'),
-                _ => unimplemented!(),
-            },
-            _ => {}
-        }
-        if !matches!(instruction, (JumpNotZero, _)) {
-            ip += 1;
-        }
-        if output.len() >= length {
-            break;
-        }
-    }
+    Computer::new(seed).run(instructions, &mut output, length);
     output.iter().collect()
+}
+
+/// No actual Part2 today, but I took the chance to optimize the problem based on my input
+pub fn part_one_fast(input: &str) -> Option<u32> {
+    let instructions = instructions(input.trim()).unwrap().1;
+    Some(fast_track(&instructions))
+}
+
+fn fast_track(instructions: &[Instruction]) -> u32 {
+    let embedded = extract_embedded_seed(instructions);
+    let embedded_binary = format!("{embedded:0b}");
+    let max = embedded_binary.len() + (embedded_binary.len() & 0b1); //Must be even to have a valid repetition
+    let smallest_in_binary: String = (0..=max)
+        .map(|i| match i % 2 {
+            0 => '0',
+            _ => '1',
+        })
+        .collect();
+    u32::from_str_radix(&smallest_in_binary, 2).unwrap() - embedded
+}
+
+/// Instruction 1 and 2 are copying values into registers and then multiplying them together
+fn extract_embedded_seed(instructions: &[Instruction]) -> u32 {
+    match (
+        instructions.iter().nth(1).unwrap(),
+        instructions.iter().nth(2).unwrap(),
+    ) {
+        ((Copy, Args(Value(a), _)), (Copy, Args(Value(b), _))) => (a * b) as u32,
+        _ => unimplemented!(),
+    }
 }
 
 fn main() {
     let input = &advent_of_code::read_file("inputs", 25);
     advent_of_code::solve!(1, part_one, input);
+    advent_of_code::solve!(1, part_one_fast, input);
 }
 
-struct Registers {
+struct Computer {
     data: HashMap<char, i32>,
 }
-impl Registers {
+impl Computer {
+    fn new(seed: i32) -> Self {
+        Self {
+            data: HashMap::from([('a', seed)]),
+        }
+    }
+    fn run(&mut self, instructions: &[Instruction], output: &mut Vec<char>, output_length: usize) {
+        let mut ip = 0;
+
+        while let Some(instruction) = instructions.get(ip) {
+            match instruction {
+                (Copy, Args(Register(from), Some(Register(target)))) => {
+                    self.set(*target, self.get(*from));
+                }
+                (Copy, Args(Value(value), Some(Register(target)))) => {
+                    self.set(*target, *value);
+                }
+                (Increment, Args(Register(register), None)) => {
+                    self.inc(*register);
+                }
+                (Decrement, Args(Register(register), None)) => {
+                    self.dec(*register);
+                }
+                (JumpNotZero, Args(arg1, Some(Value(offset)))) => {
+                    let test = match arg1 {
+                        Register(register) => self.get(*register),
+                        Value(value) => *value,
+                    };
+                    ip = match (test, *offset) {
+                        (0, _) => ip + 1,
+                        (_, 0) => ip + 1,
+                        (_, steps) if steps < 0 => ip.saturating_sub(steps.unsigned_abs() as usize),
+                        (_, steps) => ip + (steps as usize),
+                    };
+                }
+                (Out, Args(Register(register), None)) => match self.get(*register) {
+                    0 => output.push('0'),
+                    1 => output.push('1'),
+                    _ => unimplemented!(),
+                },
+                _ => {}
+            }
+            if !matches!(instruction, (JumpNotZero, _)) {
+                ip += 1;
+            }
+            if output.len() >= output_length {
+                break;
+            }
+        }
+    }
     fn get(&self, register: char) -> i32 {
         *self.data.get(&register).unwrap_or(&0)
     }
@@ -82,7 +118,7 @@ impl Registers {
     }
 }
 type Instruction = (Operation, Args);
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Operation {
     Copy,
     Increment,
@@ -90,9 +126,9 @@ pub enum Operation {
     JumpNotZero,
     Out,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Args(Arg, Option<Arg>);
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum Arg {
     Register(char),
     Value(i32),
@@ -153,6 +189,12 @@ mod tests {
     #[test]
     fn test_part_one() {
         let input = advent_of_code::read_file("examples", 25);
-        assert_eq!(part_one(&input), None);
+        assert_eq!(part_one(&input), Some(38));
+    }
+
+    #[test]
+    fn test_part_one_faster() {
+        let input = advent_of_code::read_file("examples", 25);
+        assert_eq!(part_one_fast(&input), Some(38));
     }
 }
